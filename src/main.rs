@@ -33,11 +33,17 @@ fn query_watchman_v2(args: &[String]) -> Result<()> {
 
     let last_update_token = &args[2];
 
-    // Gracefully upgrade repo fsmonitor from v1 timestmap to v2 opaque clock token.
+    // Gracefully upgrade repo fsmonitor from v1 timestamp to v2 opaque clock token.
+    // Modern watchman only accepts clock tokens, not numeric timestamps.
     let token_value = if let Some('c') = last_update_token.chars().next() {
         Value::from(last_update_token.to_string())
     } else {
-        Value::from(last_update_token.parse::<u64>().unwrap_or(0) / 1_000_000_000)
+        // For non-clock tokens (like "0" on first run), get a fresh clock from watchman
+        // and return "everything is dirty" to Git.
+        add_watch(&worktree)?;
+        let clock_id = watchman_clock(&worktree)?;
+        print!("{}\0/\0", clock_id);
+        return Ok(());
     };
 
     // From the Perl that ships with Git:
@@ -121,7 +127,12 @@ fn watchman_clock(worktree: &Path) -> Result<String> {
 
     let response: Value = serde_json::from_str(std::str::from_utf8(&output)?)?;
 
-    if let Some(clock_id) = response["clock"].as_str() {
+    if let Some(error) = response["error"].as_str() {
+        Err(anyhow!(
+            "`watchman clock` returned an error: {}",
+            error
+        ))
+    } else if let Some(clock_id) = response["clock"].as_str() {
         Ok(String::from(clock_id))
     } else {
         Err(anyhow!(
