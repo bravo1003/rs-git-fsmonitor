@@ -13,8 +13,7 @@ The heavy lifting is done by Meta's [watchman](https://facebook.github.io/watchm
 Each [release](https://github.com/bravo1003/rs-git-fsmonitor/releases) ships a static binary with no glibc dependency:
 
 ```bash
-V=v0.3.0
-curl -LO https://github.com/bravo1003/rs-git-fsmonitor/releases/download/$V/rs-git-fsmonitor-x86_64-linux-musl
+curl -LO https://github.com/bravo1003/rs-git-fsmonitor/releases/latest/download/rs-git-fsmonitor-x86_64-linux-musl
 sudo install -m 755 rs-git-fsmonitor-x86_64-linux-musl /usr/local/bin/rs-git-fsmonitor
 ```
 
