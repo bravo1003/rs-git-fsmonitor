@@ -2,32 +2,35 @@
 
 A git fsmonitor hook written in Rust.
 
+Forked from [jgavris/rs-git-fsmonitor](https://github.com/jgavris/rs-git-fsmonitor). This fork has diverged (see the [releases](https://github.com/bravo1003/rs-git-fsmonitor/releases)), and the upstream Homebrew and Habitat packages don't ship it.
+
 ## Installation
 
-The heavy lifting of this tool is handled by Facebook's `watchman` utilty, so you will need [watchman](https://facebook.github.io/watchman/docs/install.html) installed.
-The Homebrew and Habitat installers will handle installing this depencency for you, so you will only need to do this if you are building from source.
+The heavy lifting is done by Meta's [watchman](https://facebook.github.io/watchman/docs/install.html), so install that first.
 
-### Via Homebrew
+### Prebuilt binary (Linux x86_64)
 
-[Homebrew](https://brew.sh/) is the recommended way to install in Mac environments:
+Each [release](https://github.com/bravo1003/rs-git-fsmonitor/releases) ships a static binary with no glibc dependency:
 
 ```bash
-brew tap jgavris/rs-git-fsmonitor https://github.com/jgavris/rs-git-fsmonitor.git && brew install rs-git-fsmonitor
-
-# Configure git repository to use the tool (run in desired large git repository):
-git config core.fsmonitor rs-git-fsmonitor
+V=v0.3.0
+curl -LO https://github.com/bravo1003/rs-git-fsmonitor/releases/download/$V/rs-git-fsmonitor-x86_64-linux-musl
+sudo install -m 755 rs-git-fsmonitor-x86_64-linux-musl /usr/local/bin/rs-git-fsmonitor
 ```
 
-### Via Habitat
-
-[Habitat](https://habitat.sh) is the recommended way to install in Linux environments:
+### From source
 
 ```bash
-# Install and link packages
-sudo hab pkg install --binlink jgavris/rs-git-fsmonitor
+cargo install --git https://github.com/bravo1003/rs-git-fsmonitor
+```
 
-# Configure git repository to use the tool (run in desired large git repository):
+### Enable it
+
+Run this in each large repository:
+
+```bash
 git config core.fsmonitor rs-git-fsmonitor
+git config core.untrackedCache true
 ```
 
 ## Purpose
@@ -84,7 +87,7 @@ sys	0m0.026s
 git config --unset core.fsmonitor
 ```
 
-And then you can remove it from the package manager you used to install it.
+Then delete the binary (`/usr/local/bin/rs-git-fsmonitor`, or `cargo uninstall rs-git-fsmonitor`).
 
 ## License
 
