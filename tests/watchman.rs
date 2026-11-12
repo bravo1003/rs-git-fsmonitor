@@ -103,3 +103,26 @@ fn v2_reports_ignored_dirs() {
     // watchman itself won't see skip/f, so the hook must flag the directory.
     assert_eq!(&out[1..], ["skip/"]);
 }
+
+#[test]
+fn v2_ignored_dir_reports_can_be_turned_off() {
+    if !have_watchman() {
+        return;
+    }
+    let repo = TempRepo::new("noreport");
+    let git = |args: &[&str]| {
+        let ok = Command::new("git").args(args).current_dir(repo.path()).output().unwrap().status.success();
+        assert!(ok, "git {:?} failed", args);
+    };
+    // The hook reads its setting with `git config`, so this needs a real repo.
+    fs::remove_dir_all(repo.path().join(".git")).unwrap();
+    git(&["init", "-q"]);
+    git(&["config", "rs-git-fsmonitor.reportIgnoredDirs", "false"]);
+    fs::write(repo.path().join(".watchmanconfig"), r#"{"ignore_dirs": ["skip"]}"#).unwrap();
+    fs::create_dir(repo.path().join("skip")).unwrap();
+
+    let first = hook(repo.path(), "2", "0");
+    fs::write(repo.path().join("skip").join("f"), "x").unwrap();
+    let out = hook(repo.path(), "2", &first[0]);
+    assert_eq!(out.len(), 1, "{:?}", out);
+}

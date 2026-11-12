@@ -234,9 +234,16 @@ fn is_not_watched_error(err: &str) -> bool {
 /// its cached state for them forever and miss edits there. Reporting them on
 /// every query makes Git re-check them itself: slower for those directories,
 /// but correct.
+///
+/// Even one such entry is not free in a big repo: Git rebuilds its index name
+/// hash and re-reads the directories above it, which costs ~0.3s on a
+/// million-file checkout. When every ignored directory is also ignored by Git
+/// and holds no tracked files (build output, downloaded toolchains), nothing
+/// in it can show up in `git status`, so the user can turn the reports off
+/// with `git config rs-git-fsmonitor.reportIgnoredDirs false`.
 fn ignored_dirs(worktree: &Path) -> Vec<String> {
-    let dirs = configured_ignore_dirs(worktree);
-    dirs.iter()
+    let dirs: Vec<String> = configured_ignore_dirs(worktree)
+        .iter()
         .filter_map(|d| {
             let d = d.trim_matches('/');
             if d.is_empty() || d == ".git" || !worktree.join(d).is_dir() {
@@ -244,7 +251,29 @@ fn ignored_dirs(worktree: &Path) -> Vec<String> {
             }
             Some(format!("{}/", d))
         })
-        .collect()
+        .collect();
+
+    // Only ask Git when there's something to report, so repos without
+    // ignored directories don't pay for the extra process.
+    if dirs.is_empty() || !report_ignored_dirs(worktree) {
+        return Vec::new();
+    }
+    dirs
+}
+
+/// `rs-git-fsmonitor.reportIgnoredDirs`, defaulting to true (the safe choice)
+/// when it's unset or Git can't be asked.
+fn report_ignored_dirs(worktree: &Path) -> bool {
+    let output = Command::new("git")
+        .args(["config", "--type=bool", "--get", "rs-git-fsmonitor.reportIgnoredDirs"])
+        .current_dir(worktree)
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output();
+    match output {
+        std::result::Result::Ok(o) => String::from_utf8_lossy(&o.stdout).trim() != "false",
+        Err(_) => true,
+    }
 }
 
 /// `ignore_dirs` from the root's `.watchmanconfig`, or, if it doesn't set
